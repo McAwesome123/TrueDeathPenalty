@@ -1,21 +1,28 @@
-﻿using HarmonyLib;
+﻿using System;
+using HarmonyLib;
 
 namespace TrueDeathPenalty.Patches;
 
 [HarmonyPatch(typeof(HUDManager))]
 public class HUDManagerPatch
 {
+    private static int prevGroupCredits;
     
-    [HarmonyPatch(nameof(HUDManager.ApplyPenalty))]
+    [HarmonyPatch("ApplyPenalty")]
+    [HarmonyPrefix]
+    public static void SavePreviousGroupCredits(Terminal ___terminalScript)
+    {
+        prevGroupCredits = ___terminalScript.groupCredits;
+    }
+    
+    [HarmonyPatch("ApplyPenalty")]
     [HarmonyPostfix]
     // ReSharper disable InconsistentNaming
-    public static void AdjustPenaltyTextPatch(int ___playersDead, int ___bodiesInsured, Terminal ___objectOfType, int groupCredits, EndOfGameStatUIElements ___statsUIElements)
+    public static void AdjustPenaltyTextPatch(int playersDead, int bodiesInsured, EndOfGameStatUIElements ___statsUIElements, Terminal ___terminalScript)
     // ReSharper restore InconsistentNaming
     {
-        Plugin.LogSource.LogInfo($"players dead: {___playersDead}, bodies insured: {___bodiesInsured}, object of type: {___objectOfType}, group credits: {groupCredits}, status ui elements: {___statsUIElements}");
+        int penalty =  (int)Math.Round((1 - (float)___terminalScript.groupCredits / prevGroupCredits ) * 100f);
         
-        int penalty = (int)((1 - (float)___objectOfType.groupCredits / groupCredits) * 100f);
-        
-        ___statsUIElements.penaltyAddition.text = $"{(object)___playersDead} casualties: -{penalty}%\n({___bodiesInsured} bodies recovered)";
+        ___statsUIElements.penaltyAddition.text = $"{playersDead} casualties: -{penalty}%\n({bodiesInsured} bodies recovered)";
     }
 }
